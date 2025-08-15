@@ -179,7 +179,7 @@ class TrieMemoryFileSystem(AbstractFileSystem):
                 raise FileNotFoundError(path)
             return self._record(self._with_root(path), node)
 
-    def exists(self, path):
+    def exists(self, path, **kwargs):
         with self._lock:
             return self._norm(path) in self._pathmap
 
@@ -271,7 +271,11 @@ class TrieMemoryFileSystem(AbstractFileSystem):
     #        self._reindex_subtree(path1, path2, src_node)
 
     def walk(
-        self, path: str, topdown: bool = True, maxdepth: int | None = None
+        self,
+        path: str,
+        maxdepth: int | None = None,
+        topdown: bool = True,
+        **kwargs,
     ) -> Iterator[tuple[str, list[str], list[str]]]:
         """Generate (dirpath, dirnames, filenames) tuples."""
         with self._lock:
@@ -308,9 +312,10 @@ class TrieMemoryFileSystem(AbstractFileSystem):
     def find(
         self,
         path: str,
+        maxdepth: int | None = None,
         withdirs: bool = False,
         detail: bool = False,
-        maxdepth: int | None = None,
+        **kwargs,
     ) -> list | dict:
         """List all entries under path recursively."""
         with self._lock:
