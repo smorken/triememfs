@@ -55,9 +55,6 @@ class TrieMemoryFileSystem(AbstractFileSystem):
     _pathmap = {root_marker: _root}  # global, do not overwrite!
     _lock = RLock()  # global, do not overwrite!
 
-    def __init__(self, *_, **__):
-        super().__init__()
-
     def _now(self) -> float:
         return time.time()
 
@@ -73,7 +70,8 @@ class TrieMemoryFileSystem(AbstractFileSystem):
     def _norm(self, path: str) -> str:
         stripped = self._strip_protocol(path)
         assert isinstance(stripped, str)
-        return stripped.strip("/")
+        result = stripped.strip("/")
+        return self.root_marker if not result else result
 
     def _with_root(self, path: str) -> str:
         """Ensure path includes the root marker."""
@@ -81,14 +79,22 @@ class TrieMemoryFileSystem(AbstractFileSystem):
             return path
         return f"{self.root_marker}{path}"
 
+    @staticmethod
+    def _format_time(ts: float) -> str:
+        return (
+            datetime.datetime.fromtimestamp(ts, tz=datetime.timezone.utc)
+            .isoformat(timespec="milliseconds")
+            .replace("+00:00", "Z")
+        )
+
     def _record(self, name: str, node: TrieNode):
 
         return {
             "name": name,
             "size": node.value.size,
             "type": "directory" if node.value.is_dir else "file",
-            "created": node.value.created,
-            "modified": node.value.modified,
+            "created": self._format_time(node.value.created),
+            "modified": self._format_time(node.value.modified),
         }
 
     def _walk_to(
