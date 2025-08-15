@@ -1,0 +1,14 @@
+/.vscode
+/build
+/*.egg-info
+__pycache__/
+htmlcov/
+.coverage
+/temp
+debug.py
+/win_build/build_venv
+/dist
+win_build/*.exe
+.venv
+/.vs
+/TestResults

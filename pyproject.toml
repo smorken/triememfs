@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.black]
+line-length = 79
+
+[project]
+name = "trie_memfs"
+version = "0.0.1"
+
+description = "fsspec in memory implementation"
+readme = "README.md"
+requires-python = ">=3.9"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+dependencies = [
+    "fsspec",
+]
+[project.optional-dependencies]
+
+development = [
+    'pytest',
+    'pytest-cov',
+    'black',
+    'coverage-badge',
+    'setuptools',
+    'wheel',
+    'toml',
+    'build',
+    'sphinx',
+    'pandas',
+    'jupyter'
+]
+
+all = ['trie_memfs[development]']
+
+
+[project.urls]
+"Homepage" = "https://github.com/smorken/trie_memfs"
+"Bug Tracker" = "https://github.com/smorken/trie_memfs"
