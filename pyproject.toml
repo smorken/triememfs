@@ -7,7 +7,7 @@ line-length = 79
 
 [project]
 name = "trie_memfs"
-version = "0.0.1"
+version = "0.0.2"
 
 description = "fsspec in memory implementation"
 readme = "README.md"
@@ -41,5 +41,5 @@ all = ['trie_memfs[development]']
 
 
 [project.urls]
-"Homepage" = "https://github.com/smorken/trie_memfs"
-"Bug Tracker" = "https://github.com/smorken/trie_memfs"
+"Homepage" = "https://github.com/smorken/triememfs"
+"Bug Tracker" = "https://github.com/smorken/triememfs/issues"
