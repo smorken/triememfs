@@ -2,6 +2,7 @@ from typing import Literal, Dict, Iterator
 import time
 import datetime
 import copy
+from io import BytesIO
 from collections import deque
 from threading import RLock
 from fsspec import AbstractFileSystem
@@ -24,12 +25,6 @@ class TrieNodeValue:
     @classmethod
     def create_file_node(cls):
         return cls(bytearray(), time.time())
-
-    def clear(self):
-        if self.buf is None:
-            return
-        else:
-            self.buf = bytearray()
 
     @property
     def size(self) -> int:
@@ -54,14 +49,14 @@ class TrieNode:
 class TrieMemoryFileSystem(AbstractFileSystem):
     protocol = "memory"
     root_marker = "/"
+    _root = TrieNode(
+        root_marker, TrieNodeValue.create_dir_node()
+    )  # global, do not overwrite!
+    _pathmap = {root_marker: _root}  # global, do not overwrite!
+    _lock = RLock()  # global, do not overwrite!
 
     def __init__(self, *_, **__):
         super().__init__()
-        self._root = TrieNode(
-            self.root_marker, TrieNodeValue.create_dir_node()
-        )
-        self._pathmap = {self.root_marker: self._root}
-        self._lock = RLock()  # upgrade to RW lock if needed
 
     def _now(self) -> float:
         return time.time()
@@ -347,21 +342,21 @@ class TrieMemoryFileSystem(AbstractFileSystem):
             else:
                 return out_names
 
-    def _reindex_subtree(self, old: str, new: str, node: TrieNode) -> None:
-        # walk subtree and rewrite keys in _pathmap
-        stack = deque([("", node)])
-        self._pathmap.pop(old, None)
-        self._pathmap[new] = node
-        while stack:
-            rel, nd = stack.pop()
-            base = f"{new}/{rel}" if rel else new
-            old_base = f"{old}/{rel}" if rel else old
-            for k, ch in nd.children.items():
-                p = f"{base}/{k}" if base else k
-                old_p = f"{old_base}/{k}" if old_base else k
-                self._pathmap[p] = ch
-                self._pathmap.pop(old_p, None)
-                stack.append((f"{rel}/{k}" if rel else k, ch))
+    # def _reindex_subtree(self, old: str, new: str, node: TrieNode) -> None:
+    #    # walk subtree and rewrite keys in _pathmap
+    #    stack = deque([("", node)])
+    #    self._pathmap.pop(old, None)
+    #    self._pathmap[new] = node
+    #    while stack:
+    #        rel, nd = stack.pop()
+    #        base = f"{new}/{rel}" if rel else new
+    #        old_base = f"{old}/{rel}" if rel else old
+    #        for k, ch in nd.children.items():
+    #            p = f"{base}/{k}" if base else k
+    #            old_p = f"{old_base}/{k}" if old_base else k
+    #            self._pathmap[p] = ch
+    #            self._pathmap.pop(old_p, None)
+    #            stack.append((f"{rel}/{k}" if rel else k, ch))
 
     def cp_file(self, path1, path2, **kwargs):
         """Copy a file's contents and metadata to a new path."""
@@ -432,7 +427,7 @@ class TrieMemoryFileSystem(AbstractFileSystem):
             )
 
 
-class InMemFile:
+class InMemFile(BytesIO):
     def __init__(
         self,
         fs: TrieMemoryFileSystem,
@@ -441,15 +436,15 @@ class InMemFile:
     ):
         self.fs = fs
         self.node = node
-        self.mode = mode
+        self._mode = str(mode)
         self.pos = 0
         if "w" in mode:
-            self.buf = bytearray()
+            super().__init__()
         else:
             if node.value is not None and node.value.buf is not None:
-                self.buf = node.value.buf
+                super().__init__(node.value.buf)
             else:
-                self.buf = bytearray()
+                super().__init__()
 
     def __enter__(self):
         return self
@@ -457,35 +452,16 @@ class InMemFile:
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.close()
 
-    def read(self, n=-1):
-        if n is None or n < 0:
-            n = len(self.buf) - self.pos
-        out = bytes(self.buf[slice(self.pos, self.pos + n)])
-        self.pos += len(out)
-        return out
+    @property
+    def mode(self):
+        return self._mode
 
-    def write(self, b):
-        end = self.pos + len(b)
-        if end > len(self.buf):
-            self.buf.extend(b"\x00" * (end - len(self.buf)))
-        self.buf[slice(self.pos, end)] = b
-        self.pos = end
-        return len(b)
-
-    def seek(self, offset, whence=0):
-        if whence == 1:
-            offset += self.pos
-        elif whence == 2:
-            offset += len(self.buf)
-        if offset < 0:
-            raise ValueError("negative seek")
-        self.pos = offset
-        return self.pos
+    def discard(self):
+        pass
 
     def close(self):
         if "w" in self.mode or "+" in self.mode or "a" in self.mode:
             with self.fs._write_lock():
                 assert self.node.value is not None
-                self.node.value.buf = self.buf
-
+                self.node.value.buf = bytearray(self.getbuffer())
                 self.node.value.modified = self.fs._now()
