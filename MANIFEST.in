@@ -1,2 +1,1 @@
-include cbm4/cbm3_compat/cbm3_results/schema/*.json
-include cbm4/app/project_db/schema/*.json
+
