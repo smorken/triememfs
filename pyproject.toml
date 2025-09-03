@@ -7,7 +7,7 @@ line-length = 79
 
 [project]
 name = "trie_memfs"
-version = "0.0.2"
+version = "0.1.0"
 
 description = "fsspec in memory implementation"
 readme = "README.md"
